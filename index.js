@@ -13,7 +13,7 @@ const bot = new TelegramBot(token, { polling: true });
 mongoose
   .connect(process.env.DB_URI)
   .then(() => console.log("Connected to DB"))
-  .catch((error) => console.error(`This happened: ${error}`));
+  .catch((error) => console.error(`Connection error: ${error}`));
 
 //! Starting server
 fastify.register(cors);
@@ -24,6 +24,12 @@ const userData = {};
 const userDataSchema = new mongoose.Schema({
   name: String,
   phoneNumber: String,
+  address: String,
+  birthdate: String,
+  passportNumber: String,
+  education: String,
+  education_date: String,
+  field: String,
   message: String,
   timestamp: { type: Date, default: Date.now },
 });
@@ -31,75 +37,129 @@ const userDataSchema = new mongoose.Schema({
 // Create Mongoose model
 const UserData = mongoose.model("UserData", userDataSchema);
 
+fastify.get("/api-data", async (_, reply) => {
+  try {
+    const data = UserData.find();
+    if (data) {
+      return reply.send(data);
+    }
+    return reply.send({ msg: "Malumot topilmadi :(" });
+  } catch (error) {
+    return reply.send({ error });
+  }
+});
 // Define route to handle bot updates
 fastify.post("/bot", async (request, reply) => {
   await bot.processUpdate(request.body);
   reply.status(200).send("OK");
 });
+
+// Handle '/start' command to initiate conversation
 bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
-  const options = {
-    reply_markup: JSON.stringify({
-      keyboard: [["Ariza qoldirish"]],
-      resize_keyboard: true,
-    }),
-  };
-  bot.sendMessage(chatId, "Ariza qoldirish tugmasini bosing👇:", options);
-});
-bot.onText(/Ariza qoldirish/, (msg) => {
-  const chatId = msg.chat.id;
   userData[chatId] = { stage: "NAME" }; // Set the stage to collect name
-  bot.sendMessage(chatId, "Arizangizni qoldirish uchun ismingizni yuboring:", {
-    reply_markup: JSON.stringify({
-      remove_keyboard: true,
-    }),
-  });
+  bot.sendMessage(chatId, "Arizangizni yuborish uchun ismingizni kiriting:");
 });
+
+// Handle incoming messages
 bot.on("message", async (msg) => {
   const chatId = msg.chat.id;
   const messageText = msg.text;
 
-  if (userData[chatId] && userData[chatId].stage === "NAME") {
-    // Save name and prompt for phone number
-    userData[chatId].name = messageText;
-    userData[chatId].stage = "PHONE_NUMBER";
-    bot.sendMessage(chatId, "Iltimos telefon raqamingizni yuboring:");
-  } else if (userData[chatId] && userData[chatId].stage === "PHONE_NUMBER") {
-    // Save phone number and prompt for message
-    userData[chatId].phoneNumber = messageText;
-    userData[chatId].stage = "MESSAGE";
-    bot.sendMessage(chatId, "Arizangizni yuboring:");
-  } else if (userData[chatId] && userData[chatId].stage === "MESSAGE") {
-    // Save message and store data in MongoDB
-    userData[chatId].message = messageText;
-    const { name, phoneNumber, message } = userData[chatId];
-
-    // Create a new UserData document and save it to MongoDB
-    const newUser = new UserData({ name, phoneNumber, message });
-    await newUser.save();
-
-    // Send confirmation message to the user
-    bot.sendMessage(
-      chatId,
-      "Sizning arizangiz qabul qilindi. Tez orada siz bilan bog'lanamiz."
-    );
-
-    // Reset userData for this chatId
-    delete userData[chatId];
+  // Check current stage of user input
+  if (userData[chatId]) {
+    switch (userData[chatId].stage) {
+      case "NAME":
+        userData[chatId].name = messageText;
+        userData[chatId].stage = "PHONE_NUMBER";
+        bot.sendMessage(chatId, "Iltimos, telefon raqamingizni yuboring:");
+        break;
+      case "PHONE_NUMBER":
+        userData[chatId].phoneNumber = messageText;
+        userData[chatId].stage = "ADDRESS";
+        bot.sendMessage(chatId, "Yashayotgan manzilingizni kiriting:");
+        break;
+      case "ADDRESS":
+        userData[chatId].address = messageText;
+        userData[chatId].stage = "BIRTHDATE";
+        bot.sendMessage(
+          chatId,
+          "Tug'ilgan sanangizni yuboring (sana/oyn/yil):"
+        );
+        break;
+      case "BIRTHDATE":
+        userData[chatId].birthdate = messageText;
+        userData[chatId].stage = "PASSPORT_NUMBER";
+        bot.sendMessage(chatId, "Pasport raqamingizni kiriting:");
+        break;
+      case "PASSPORT_NUMBER":
+        userData[chatId].passportNumber = messageText;
+        userData[chatId].stage = "EDUCATION";
+        bot.sendMessage(chatId, "Yozmoqchi bo'lgan xabaringizni yuboring:");
+        break;
+      case "EDUCATION":
+        userData[chatId].education = messageText;
+        userData[chatId].stage = "EDUCATION_DATE";
+        bot.sendMessage(chatId, "Qaysi oquv talimni tamomlagansiz?:");
+        break;
+      case "EDUCATION_DATE":
+        userData[chatId].education_date = messageText;
+        userData[chatId].stage = "FIELD";
+        bot.sendMessage(chatId, "Oquv ta`limni tamomlagan yilingiz?:");
+        break;
+      case "FIELD":
+        userData[chatId].field = messageText;
+        userData[chatId].stage = "MESSAGE";
+        bot.sendMessage(chatId, "Mutaxasisligingizni yuboring:");
+        break;
+      case "MESSAGE":
+        // Save message and store data in MongoDB
+        userData[chatId].message = messageText;
+        const {
+          name,
+          phoneNumber,
+          address,
+          birthdate,
+          passportNumber,
+          education,
+          education_date,
+          field,
+          message,
+        } = userData[chatId];
+        // Create a new UserData document and save it to MongoDB
+        const newUser = new UserData({
+          name,
+          phoneNumber,
+          address,
+          birthdate,
+          passportNumber,
+          message,
+          education,
+          education_date,
+          field,
+        });
+        await newUser.save();
+        // Send confirmation message to the user
+        bot.sendMessage(
+          chatId,
+          "Arizangiz qabul qilindi. Tez orada siz bilan bog'lanamiz."
+        );
+        // Reset userData for this chatId
+        delete userData[chatId];
+        break;
+      default:
+        break;
+    }
   }
 });
 
 // Start the server
-(() => {
-  try {
-    fastify.listen({ port: process.env.PORT || 8000, host: "0.0.0.0" }, function (err, address) {
-      if (err) {
-        fastify.log.error(err);
-        process.exit(1);
-      }
-      fastify.log.info(`Server is now listening on ${address}`);
-    });
-  } catch (error) {
-    fastify.log.error(error);
+fastify.listen(process.env.PORT || 8000, "0.0.0.0", (err) => {
+  if (err) {
+    fastify.log.error(err);
+    process.exit(1);
   }
-})();
+  fastify.log.info(
+    `Server is now listening on ${fastify.server.address().port}`
+  );
+});
