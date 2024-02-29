@@ -92,7 +92,7 @@ bot.on("message", async (msg) => {
 // Start the server
 (() => {
   try {
-    fastify.listen({ port: process.env.PORT || 8000 }, function (err, address) {
+    fastify.listen({ port: process.env.PORT || 8000, host: "0.0.0.0" }, function (err, address) {
       if (err) {
         fastify.log.error(err);
         process.exit(1);
