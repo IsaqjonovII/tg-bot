@@ -39,7 +39,7 @@ const UserData = mongoose.model("UserData", userDataSchema);
 
 fastify.get("/api-data", async (_, reply) => {
   try {
-    const data = UserData.find();
+    const data = UserData.find().lean();
     if (data) {
       return reply.send(data);
     }
