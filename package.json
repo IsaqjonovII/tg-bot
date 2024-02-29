@@ -1,0 +1,30 @@
+{
+  "name": "request-bot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "nodemon index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@fastify/cors": "^8.5.0",
+    "axios": "^1.6.7",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.3",
+    "fastify": "^4.26.1",
+    "mongoose": "^8.2.0",
+    "node-telegram-bot-api": "^0.64.0",
+    "nodemon": "^3.1.0",
+    "telebot": "^1.4.1"
+  },
+  "engines": {
+    "node": ">=14.20.1"
+  },
+  "devDependencies": {
+    "@types/node-telegram-bot-api": "^0.64.2"
+  }
+}
