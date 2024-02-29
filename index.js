@@ -37,17 +37,7 @@ const userDataSchema = new mongoose.Schema({
 // Create Mongoose model
 const UserData = mongoose.model("UserData", userDataSchema);
 
-fastify.get("/api-data", async (_, reply) => {
-  try {
-    const data = UserData.find().lean();
-    if (data) {
-      return reply.send(data);
-    }
-    return reply.send({ msg: "Malumot topilmadi :(" });
-  } catch (error) {
-    return reply.send({ error });
-  }
-});
+
 // Define route to handle bot updates
 fastify.post("/bot", async (request, reply) => {
   await bot.processUpdate(request.body);
@@ -152,7 +142,17 @@ bot.on("message", async (msg) => {
     }
   }
 });
-
+fastify.get("/api-data", async (_, reply) => {
+  try {
+    const data = await UserData.find().lean();
+    if (data) {
+      return reply.send(data);
+    }
+    return reply.send({ msg: "Malumot topilmadi :(" });
+  } catch (error) {
+    return reply.send({ error });
+  }
+});
 // Start the server
 fastify.listen(process.env.PORT || 8000, "0.0.0.0", (err) => {
   if (err) {
