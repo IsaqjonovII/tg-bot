@@ -77,22 +77,22 @@ bot.on("message", async (msg) => {
       case "PASSPORT_NUMBER":
         userData[chatId].passportNumber = messageText;
         userData[chatId].stage = "EDUCATION";
-        bot.sendMessage(chatId, "Yozmoqchi bo'lgan xabaringizni yuboring:");
+        bot.sendMessage(chatId, "Qaysi o'quv yurtini tamomlagansiz? :");
         break;
       case "EDUCATION":
         userData[chatId].education = messageText;
         userData[chatId].stage = "EDUCATION_DATE";
-        bot.sendMessage(chatId, "Qaysi oquv talimni tamomlagansiz?:");
+        bot.sendMessage(chatId, "Oquv ta`limni tamomlagan yilingiz?: ");
         break;
       case "EDUCATION_DATE":
         userData[chatId].education_date = messageText;
         userData[chatId].stage = "FIELD";
-        bot.sendMessage(chatId, "Oquv ta`limni tamomlagan yilingiz?:");
+        bot.sendMessage(chatId, "Mutaxasisligingiz? :");
         break;
       case "FIELD":
         userData[chatId].field = messageText;
         userData[chatId].stage = "MESSAGE";
-        bot.sendMessage(chatId, "Mutaxasisligingizni yuboring:");
+        bot.sendMessage(chatId, "xabaringizni yozing:");
         break;
       case "MESSAGE":
         userData[chatId].message = messageText;
