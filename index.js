@@ -5,7 +5,6 @@ const fastify = require("fastify")({
 const mongoose = require("mongoose");
 const cors = require("@fastify/cors");
 require("dotenv/config");
-const csvStringify = require("csv-stringify");
 const TelegramBot = require("node-telegram-bot-api");
 const token = process.env.BOT_TOKEN;
 const bot = new TelegramBot(token, { polling: true });
@@ -18,7 +17,7 @@ mongoose
 //! Starting server
 fastify.register(cors);
 
-const userData = {};
+const userData = {}; // Store user data and stages
 
 const userDataSchema = new mongoose.Schema({
   name: String,
@@ -35,24 +34,24 @@ const userDataSchema = new mongoose.Schema({
 
 const UserData = mongoose.model("UserData", userDataSchema);
 
-
+// Route to handle bot updates
 fastify.post("/bot", async (request, reply) => {
   await bot.processUpdate(request.body);
   reply.status(200).send("OK");
 });
 
+// Event handler for '/start' command
 bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
-  userData[chatId] = { stage: "NAME" }; // Set the stage to collect name
+  userData[chatId] = { stage: "NAME" }; // Initialize user data and stage
   bot.sendMessage(chatId, "Arizangizni yuborish uchun ismingizni kiriting:");
 });
 
-// Handle incoming messages
+// Event handler for incoming messages
 bot.on("message", async (msg) => {
   const chatId = msg.chat.id;
   const messageText = msg.text;
 
-  // Check current stage of user input
   if (userData[chatId]) {
     switch (userData[chatId].stage) {
       case "NAME":
@@ -68,10 +67,7 @@ bot.on("message", async (msg) => {
       case "ADDRESS":
         userData[chatId].address = messageText;
         userData[chatId].stage = "BIRTHDATE";
-        bot.sendMessage(
-          chatId,
-          "Tug'ilgan sanangizni yuboring (sana/oyn/yil):"
-        );
+        bot.sendMessage(chatId, "Tug'ilgan sanangizni yuboring (sana/oyn/yil):");
         break;
       case "BIRTHDATE":
         userData[chatId].birthdate = messageText;
@@ -99,7 +95,6 @@ bot.on("message", async (msg) => {
         bot.sendMessage(chatId, "Mutaxasisligingizni yuboring:");
         break;
       case "MESSAGE":
-        // Save message and store data in MongoDB
         userData[chatId].message = messageText;
         const {
           name,
@@ -112,7 +107,6 @@ bot.on("message", async (msg) => {
           field,
           message,
         } = userData[chatId];
-        // Create a new UserData document and save it to MongoDB
         const newUser = new UserData({
           name,
           phoneNumber,
@@ -139,24 +133,21 @@ bot.on("message", async (msg) => {
   }
 });
 
+// Route to fetch API data
 fastify.get("/api-data", async (_, reply) => {
   try {
     const data = await UserData.find().lean();
-    if(data) {
-      // if (req.query.format === "csv") {
-        // reply.type("text/csv");
-        return reply.send(data);
-      // } else {
-        // return reply.send(data);
-      // }
+    if (data) {
+      return reply.send(data);
     }
     return reply.send({ msg: "Malumot topilmadi :(" });
   } catch (error) {
     return reply.send({ error });
   }
 });
+
 // Start the server
-fastify.listen({ port: process.env.PORT || 8000, host: "0.0.0.0" } , (err) => {
+fastify.listen({ port: process.env.PORT || 8000, host: "0.0.0.0" }, (err) => {
   if (err) {
     fastify.log.error(err);
     process.exit(1);
