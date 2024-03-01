@@ -5,7 +5,7 @@ const fastify = require("fastify")({
 const mongoose = require("mongoose");
 const cors = require("@fastify/cors");
 require("dotenv/config");
-
+const csvStringify = require("csv-stringify");
 const TelegramBot = require("node-telegram-bot-api");
 const token = process.env.BOT_TOKEN;
 const bot = new TelegramBot(token, { polling: true });
@@ -20,7 +20,6 @@ fastify.register(cors);
 
 const userData = {};
 
-// Define MongoDB schema for user data
 const userDataSchema = new mongoose.Schema({
   name: String,
   phoneNumber: String,
@@ -34,17 +33,14 @@ const userDataSchema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now },
 });
 
-// Create Mongoose model
 const UserData = mongoose.model("UserData", userDataSchema);
 
 
-// Define route to handle bot updates
 fastify.post("/bot", async (request, reply) => {
   await bot.processUpdate(request.body);
   reply.status(200).send("OK");
 });
 
-// Handle '/start' command to initiate conversation
 bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
   userData[chatId] = { stage: "NAME" }; // Set the stage to collect name
@@ -142,11 +138,17 @@ bot.on("message", async (msg) => {
     }
   }
 });
+
 fastify.get("/api-data", async (_, reply) => {
   try {
     const data = await UserData.find().lean();
-    if (data) {
-      return reply.send(data);
+    if(data) {
+      // if (req.query.format === "csv") {
+        // reply.type("text/csv");
+        return reply.send(data);
+      // } else {
+        // return reply.send(data);
+      // }
     }
     return reply.send({ msg: "Malumot topilmadi :(" });
   } catch (error) {
@@ -154,7 +156,7 @@ fastify.get("/api-data", async (_, reply) => {
   }
 });
 // Start the server
-fastify.listen(process.env.PORT || 8000, "0.0.0.0", (err) => {
+fastify.listen({ port: process.env.PORT || 8000 } , (err) => {
   if (err) {
     fastify.log.error(err);
     process.exit(1);
