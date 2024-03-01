@@ -156,7 +156,7 @@ fastify.get("/api-data", async (_, reply) => {
   }
 });
 // Start the server
-fastify.listen({ port: process.env.PORT || 8000 } , (err) => {
+fastify.listen({ port: process.env.PORT || 8000, host: "0.0.0.0" } , (err) => {
   if (err) {
     fastify.log.error(err);
     process.exit(1);
