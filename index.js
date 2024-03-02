@@ -22,7 +22,9 @@ const userData = {}; // Store user data and stages
 const userDataSchema = new mongoose.Schema({
   name: String,
   phoneNumber: String,
-  address: String,
+  region: String,
+  city: String,
+  street: String,
   birthdate: String,
   passportNumber: String,
   education: String,
@@ -38,7 +40,7 @@ const UserData = mongoose.model("UserData", userDataSchema);
 bot.onText(/\/start/, async (msg) => {
   const chatId = msg.chat.id;
   userData[chatId] = { stage: "NAME" }; // Initialize user data and stage
-  await bot.sendMessage(chatId, "Ismingizni kiriting:");
+  await bot.sendMessage(chatId, "F.I.O kiriting:");
 });
 
 // Event handler for incoming messages
@@ -51,20 +53,27 @@ bot.on("message", async (msg) => {
       case "NAME":
         userData[chatId].name = messageText;
         userData[chatId].stage = "PHONE_NUMBER";
-        bot.sendMessage(chatId, "Iltimos, telefon raqamingizni yuboring:");
+        bot.sendMessage(chatId, "Telefon raqamingiz:");
         break;
       case "PHONE_NUMBER":
         userData[chatId].phoneNumber = messageText;
-        userData[chatId].stage = "ADDRESS";
-        bot.sendMessage(chatId, "Yashayotgan manzilingizni kiriting:");
+        userData[chatId].stage = "REGION";
+        bot.sendMessage(chatId, "Viloyatingizni kiriting:");
         break;
-      case "ADDRESS":
-        userData[chatId].address = messageText;
+      case "REGION":
+        userData[chatId].region = messageText;
+        userData[chatId].stage = "CITY";
+        bot.sendMessage(chatId, "Tuman(shahar)ingizni kiriting:");
+        break;
+      case "CITY":
+        userData[chatId].city = messageText;
+        userData[chatId].stage = "STREET";
+        bot.sendMessage(chatId, "Mahallangizni kiriting:");
+        break;
+      case "STREET":
+        userData[chatId].street = messageText;
         userData[chatId].stage = "BIRTHDATE";
-        bot.sendMessage(
-          chatId,
-          "Tug'ilgan sanangizni yuboring (kun/oy/yil):"
-        );
+        bot.sendMessage(chatId, "Tug'ilgan sanangizni yuboring (kun/oy/yil):");
         break;
       case "BIRTHDATE":
         userData[chatId].birthdate = messageText;
@@ -94,7 +103,19 @@ bot.on("message", async (msg) => {
       case "MESSAGE":
         userData[chatId].message = messageText;
         userData[chatId].stage = "PREVIEW";
-        const previewMsg = `Arizangizni tekshiring:\n\nIsm: ${userData[chatId].name}\nTelefon: ${userData[chatId].phoneNumber}\nManzil: ${userData[chatId].address}\nTug'ilgan sanasi: ${userData[chatId].birthdate}\nPasport raqami: ${userData[chatId].passportNumber}\nO'quv yurti: ${userData[chatId].education}\nO'quv yilini: ${userData[chatId].education_date}\nMutaxassisligi: ${userData[chatId].field}\nXabar: ${userData[chatId].message}`;
+        const previewMsg = `Arizangizni tekshiring: \n\n
+        Ism: ${userData[chatId].name}\n
+        Telefon: ${userData[chatId].phoneNumber}\n
+        Viloyat: ${userData[chatId].region}\n
+        Tuman(Shahar): ${userData[chatId].city}\n
+        Mahalla: ${userData[chatId].street}\n
+        Tug'ilgan sanasi: ${userData[chatId].birthdate}\n
+        Pasport raqami: ${userData[chatId].passportNumber}\n
+        O'quv yurti: ${userData[chatId].education}\n
+        O'quv yilini: ${userData[chatId].education_date}\n
+        Mutaxassisligi: ${userData[chatId].field}\n
+        Xabar: ${userData[chatId].message}`;
+
         const previewOpts = {
           reply_markup: {
             inline_keyboard: [
@@ -116,15 +137,38 @@ bot.on("message", async (msg) => {
   }
 });
 
-// Handle callback queries (e.g., button clicks)
 bot.on("callback_query", async (callbackQuery) => {
   const chatId = callbackQuery.message.chat.id;
   const data = callbackQuery.data;
 
   switch (data) {
     case "confirm":
-      const { name, phoneNumber, address,birthdate, passportNumber, education, education_date,field, message, } = userData[chatId];
-      const newUser = new UserData({ name, phoneNumber, address, birthdate, passportNumber, message, education, education_date, field, });
+      const {
+        name,
+        phoneNumber,
+        region,
+        city,
+        street,
+        birthdate,
+        passportNumber,
+        education,
+        education_date,
+        field,
+        message,
+      } = userData[chatId];
+      const newUser = new UserData({
+        name,
+        phoneNumber,
+        region,
+        city,
+        street,
+        birthdate,
+        passportNumber,
+        message,
+        education,
+        education_date,
+        field,
+      });
       await newUser.save();
       await bot.sendMessage(
         chatId,
