@@ -34,17 +34,11 @@ const userDataSchema = new mongoose.Schema({
 
 const UserData = mongoose.model("UserData", userDataSchema);
 
-// Route to handle bot updates
-fastify.post("/bot", async (request, reply) => {
-  await bot.processUpdate(request.body);
-  reply.status(200).send("OK");
-});
-
 // Event handler for '/start' command
-bot.onText(/\/start/, (msg) => {
+bot.onText(/\/start/, async (msg) => {
   const chatId = msg.chat.id;
   userData[chatId] = { stage: "NAME" }; // Initialize user data and stage
-  bot.sendMessage(chatId, "Arizangizni yuborish uchun ismingizni kiriting:");
+  await bot.sendMessage(chatId, "Ismingizni kiriting:");
 });
 
 // Event handler for incoming messages
@@ -67,7 +61,10 @@ bot.on("message", async (msg) => {
       case "ADDRESS":
         userData[chatId].address = messageText;
         userData[chatId].stage = "BIRTHDATE";
-        bot.sendMessage(chatId, "Tug'ilgan sanangizni yuboring (sana/oyn/yil):");
+        bot.sendMessage(
+          chatId,
+          "Tug'ilgan sanangizni yuboring (kun/oy/yil):"
+        );
         break;
       case "BIRTHDATE":
         userData[chatId].birthdate = messageText;
@@ -96,41 +93,57 @@ bot.on("message", async (msg) => {
         break;
       case "MESSAGE":
         userData[chatId].message = messageText;
-        const {
-          name,
-          phoneNumber,
-          address,
-          birthdate,
-          passportNumber,
-          education,
-          education_date,
-          field,
-          message,
-        } = userData[chatId];
-        const newUser = new UserData({
-          name,
-          phoneNumber,
-          address,
-          birthdate,
-          passportNumber,
-          message,
-          education,
-          education_date,
-          field,
-        });
-        await newUser.save();
-        // Send confirmation message to the user
-        bot.sendMessage(
-          chatId,
-          "Arizangiz qabul qilindi. Tez orada siz bilan bog'lanamiz."
-        );
-        // Reset userData for this chatId
-        delete userData[chatId];
+        userData[chatId].stage = "PREVIEW";
+        const previewMsg = `Arizangizni tekshiring:\n\nIsm: ${userData[chatId].name}\nTelefon: ${userData[chatId].phoneNumber}\nManzil: ${userData[chatId].address}\nTug'ilgan sanasi: ${userData[chatId].birthdate}\nPasport raqami: ${userData[chatId].passportNumber}\nO'quv yurti: ${userData[chatId].education}\nO'quv yilini: ${userData[chatId].education_date}\nMutaxassisligi: ${userData[chatId].field}\nXabar: ${userData[chatId].message}`;
+        const previewOpts = {
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: "Ha", callback_data: "confirm" },
+                { text: "Yo'q", callback_data: "cancel" },
+              ],
+            ],
+          },
+        };
+        await bot.sendMessage(chatId, previewMsg, previewOpts);
+        break;
+      case "PREVIEW":
+        // Do nothing if user is at preview stage
         break;
       default:
         break;
     }
   }
+});
+
+// Handle callback queries (e.g., button clicks)
+bot.on("callback_query", async (callbackQuery) => {
+  const chatId = callbackQuery.message.chat.id;
+  const data = callbackQuery.data;
+
+  switch (data) {
+    case "confirm":
+      const { name, phoneNumber, address,birthdate, passportNumber, education, education_date,field, message, } = userData[chatId];
+      const newUser = new UserData({ name, phoneNumber, address, birthdate, passportNumber, message, education, education_date, field, });
+      await newUser.save();
+      await bot.sendMessage(
+        chatId,
+        "Arizangiz qabul qilindi. Tez orada siz bilan bog'lanamiz."
+      );
+      delete userData[chatId]; // Reset userData
+      break;
+    case "cancel":
+      userData[chatId].stage = "NAME"; // Reset stage
+      await bot.sendMessage(
+        chatId,
+        "Ariza bekor qilindi. Iltimos, ismingizni kiriting:"
+      );
+      break;
+    default:
+      break;
+  }
+
+  await bot.deleteMessage(chatId, callbackQuery.message.message_id);
 });
 
 // Route to fetch API data
