@@ -1,7 +1,4 @@
-const fastify = require("fastify")({
-  logger: true,
-  bodyLimit: 100 * 1024 * 1024,
-});
+const fastify = require("fastify")({ logger: true });
 const mongoose = require("mongoose");
 const cors = require("@fastify/cors");
 require("dotenv/config");
@@ -17,7 +14,7 @@ mongoose
 //! Starting server
 fastify.register(cors);
 
-const userData = {}; // Store user data and stages
+const userData = {};
 
 const userDataSchema = new mongoose.Schema({
   name: String,
