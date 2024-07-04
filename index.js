@@ -27,20 +27,19 @@ const userDataSchema = new mongoose.Schema({
   education: String,
   education_date: String,
   field: String,
+  languages: String,
   message: String,
   timestamp: { type: Date, default: Date.now },
 });
 
 const UserData = mongoose.model("UserData", userDataSchema);
 
-// Event handler for '/start' command
 bot.onText(/\/start/, async (msg) => {
   const chatId = msg.chat.id;
-  userData[chatId] = { stage: "NAME" }; // Initialize user data and stage
+  userData[chatId] = { stage: "NAME" };
   await bot.sendMessage(chatId, "F.I.O kiriting:");
 });
 
-// Event handler for incoming messages
 bot.on("message", async (msg) => {
   const chatId = msg.chat.id;
   const messageText = msg.text;
@@ -94,8 +93,13 @@ bot.on("message", async (msg) => {
         break;
       case "FIELD":
         userData[chatId].field = messageText;
+        userData[chatId].stage = "LANGUAGES";
+        bot.sendMessage(chatId, "Qaysi chet tilini bilasiz?");
+        break;
+      case "LANGUAGES":
+        userData[chatId].languages = messageText;
         userData[chatId].stage = "MESSAGE";
-        bot.sendMessage(chatId, "xabaringizni yozing:");
+        bot.sendMessage(chatId, "Xabaringizni yozing:");
         break;
       case "MESSAGE":
         userData[chatId].message = messageText;
@@ -111,6 +115,7 @@ bot.on("message", async (msg) => {
         O'quv yurti: ${userData[chatId].education}\n
         O'quv yilini: ${userData[chatId].education_date}\n
         Mutaxassisligi: ${userData[chatId].field}\n
+        Chet tillar: ${userData[chatId].languages}\n
         Xabar: ${userData[chatId].message}`;
 
         const previewOpts = {
@@ -126,7 +131,6 @@ bot.on("message", async (msg) => {
         await bot.sendMessage(chatId, previewMsg, previewOpts);
         break;
       case "PREVIEW":
-        // Do nothing if user is at preview stage
         break;
       default:
         break;
@@ -151,6 +155,7 @@ bot.on("callback_query", async (callbackQuery) => {
         education,
         education_date,
         field,
+        languages,
         message,
       } = userData[chatId];
       const newUser = new UserData({
@@ -161,23 +166,24 @@ bot.on("callback_query", async (callbackQuery) => {
         street,
         birthdate,
         passportNumber,
-        message,
         education,
         education_date,
         field,
+        languages,
+        message,
       });
       await newUser.save();
       await bot.sendMessage(
         chatId,
-        "Arizangiz qabul qilindi. Tez orada siz bilan bog'lanamiz."
+        "Arizangiz qabul qilindi. Tez orada siz bilan bog'lanamiz.",
       );
-      delete userData[chatId]; // Reset userData
+      delete userData[chatId];
       break;
     case "cancel":
-      userData[chatId].stage = "NAME"; // Reset stage
+      userData[chatId].stage = "NAME";
       await bot.sendMessage(
         chatId,
-        "Ariza bekor qilindi. Iltimos, ismingizni kiriting:"
+        "Ariza bekor qilindi. Iltimos, ismingizni kiriting:",
       );
       break;
     default:
@@ -187,7 +193,6 @@ bot.on("callback_query", async (callbackQuery) => {
   await bot.deleteMessage(chatId, callbackQuery.message.message_id);
 });
 
-// Route to fetch API data
 fastify.get("/api-data", async (_, reply) => {
   try {
     const data = await UserData.find().lean();
@@ -200,13 +205,12 @@ fastify.get("/api-data", async (_, reply) => {
   }
 });
 
-// Start the server
 fastify.listen({ port: process.env.PORT || 8000, host: "0.0.0.0" }, (err) => {
   if (err) {
     fastify.log.error(err);
     process.exit(1);
   }
   fastify.log.info(
-    `Server is now listening on ${fastify.server.address().port}`
+    `Server is now listening on ${fastify.server.address().port}`,
   );
 });
